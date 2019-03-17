@@ -9,27 +9,10 @@ LocationDetection::LocationDetection(const float& actual_width, const float& act
    FloorImage = imread( "floor.jpg" );
    if (!FloorImage.empty()) {
       MeterToPixel = static_cast<float>(FloorImage.cols) / ActualFloorWidth;
-      setWorldMap();
       if (zones.empty()) customizeZones();
       else CustomizedZones = zones;
    }
    else cout << "Cannot Load the Image..." << endl;
-}
-
-void LocationDetection::setWorldMap()
-{
-   const int width = static_cast<int>(round( ActualFloorWidth * MeterToPixel ));
-   const int height = static_cast<int>(round( ActualFloorHeight * MeterToPixel ));
-   //FloorOnWorldMap = Rect(width / 10, height / 3, width, height);
-   //WorldMap = Mat(height * 7 / 5, width * 6 / 5, CV_8UC3, Scalar::all(160));
-   //putText( 
-   //   WorldMap, 
-   //   "World Map", 
-   //   Point(WorldMap.cols * 4 / 13, WorldMap.rows / 7), 
-   //   FONT_HERSHEY_SCRIPT_COMPLEX, 
-   //   5.0, WHITE_COLOR, 5
-   //);
-   //FloorImage.copyTo( WorldMap(FloorOnWorldMap) );
 }
 
 bool LocationDetection::isEndPoint(const int& x, const int& y)
@@ -164,42 +147,6 @@ void LocationDetection::renderCameraPositionOnWorldMap(const Camera& camera)
    line( FloorImage, camera_in_world, right_direction, color );
 }
 
-void LocationDetection::transformWorldToCamera(
-   Point& transformed, 
-   const Point& world_point,
-   const float& altitude_of_point,
-   const Camera& camera
-) const
-// camera's view direction is z-axis, down direction is y-axis, and right direction is x-axis.
-{
-   const Point2f actual_point_in_meter(
-      static_cast<float>(world_point.x) / MeterToPixel, 
-      static_cast<float>(world_point.y) / MeterToPixel
-   );
-   const float h = camera.CameraHeight + camera.Altitude - altitude_of_point;
-   Point3f world = camera.Intrinsic * camera.TiltingToCamera * camera.PanningToCamera * Point3f(
-      actual_point_in_meter.y - camera.Translation.x, 
-      h, 
-      actual_point_in_meter.x - camera.Translation.z
-   );
-   if (world.z == 0.0f) world.z = 1e-7f;
-   world.x /= world.z;
-   world.y /= world.z;
-   transformed.x = static_cast<int>(round( world.x ));
-   transformed.y = static_cast<int>(round( world.y ));
-}
-
-void LocationDetection::renderZonesInCamera(Camera& camera)
-{
-   for (const auto& zone : CustomizedZones) {
-      vector<Point> points_in_camera(zone.Zone.size());
-      for (uint i = 0; i < zone.Zone.size(); ++i) {
-         transformWorldToCamera( points_in_camera[i], zone.Zone[i], zone.Altitude, camera );
-      }
-      renderZone( camera.CameraView, points_in_camera, YELLOW_COLOR );
-   }
-}
-
 void LocationDetection::setCamera(
    const int& camera_index,
    const int& width, 
@@ -254,30 +201,7 @@ void LocationDetection::setCamera(
    }
 
    renderCameraPositionOnWorldMap( camera );
-   renderZonesInCamera( camera );
    LocalCameras.emplace_back( camera );
-}
-
-void LocationDetection::detectLocation(Point& camera_point, const int& camera_index, const Point2f& actual_position_in_meter)
-{
-   if (static_cast<int>(LocalCameras.size()) <= camera_index) {
-      camera_point = { -1, -1 };
-      return;
-   }
-
-   const Point world_point(
-      static_cast<int>(round( actual_position_in_meter.x * MeterToPixel )), 
-      static_cast<int>(round( actual_position_in_meter.y * MeterToPixel ))
-   );
-
-   float altitude = DefaultAltitude;
-   for (const auto& zone : CustomizedZones) {
-      if (isInsideZone( world_point, zone.Zone )) {
-         altitude = zone.Altitude;
-         break;
-      }
-   }
-   transformWorldToCamera( camera_point, world_point, altitude, LocalCameras[camera_index] );
 }
 
 bool LocationDetection::transformCameraToWorld(
@@ -313,6 +237,19 @@ bool LocationDetection::transformCameraToWorld(
       0.0f <= image_point.y && image_point.y < static_cast<float>(FloorImage.rows);
 }
 
+bool LocationDetection::canSeePointOnDefaultAltitude(Point2f& world_point, const Point& camera_point, const Camera& camera)
+{
+   if (transformCameraToWorld( world_point, camera_point, DefaultAltitude, camera )) {
+      for (const auto& zone : CustomizedZones) {
+         if (isInsideZone( static_cast<Point>(world_point), zone.Zone )) {
+            return false;            
+         }
+      }
+      return true;
+   }
+   return false;
+}
+
 Vec3b LocationDetection::getPixelBilinearInterpolated(const Point2f& image_point)
 {
    const auto x0 = static_cast<int>(floor( image_point.x ));
@@ -327,16 +264,16 @@ Vec3b LocationDetection::getPixelBilinearInterpolated(const Point2f& image_point
 
    return Vec3b{
       static_cast<uchar>(
-         static_cast<float>(curr[x0](0)) * (1.0f - tx) * (1.0f - ty) + static_cast<float>(curr[x1](0)) * tx * (1.0f - ty)
-         + static_cast<float>(next[x0](0)) * (1.0f - tx) * ty + static_cast<float>(next[x1](0)) * tx * ty
+         static_cast<float>(curr[x0](0)) * (1.0f - tx) * (1.0f - ty) + static_cast<float>(curr[x1](0)) * tx * (1.0f - ty) +
+         static_cast<float>(next[x0](0)) * (1.0f - tx) * ty + static_cast<float>(next[x1](0)) * tx * ty
       ),
       static_cast<uchar>(
-         static_cast<float>(curr[x0](1)) * (1.0f - tx) * (1.0f - ty) + static_cast<float>(curr[x1](1)) * tx * (1.0f - ty)
-         + static_cast<float>(next[x0](1)) * (1.0f - tx) * ty + static_cast<float>(next[x1](1)) * tx * ty
+         static_cast<float>(curr[x0](1)) * (1.0f - tx) * (1.0f - ty) + static_cast<float>(curr[x1](1)) * tx * (1.0f - ty) +
+         static_cast<float>(next[x0](1)) * (1.0f - tx) * ty + static_cast<float>(next[x1](1)) * tx * ty
       ),
       static_cast<uchar>(
-         static_cast<float>(curr[x0](2)) * (1.0f - tx) * (1.0f - ty) + static_cast<float>(curr[x1](2)) * tx * (1.0f - ty)
-         + static_cast<float>(next[x0](2)) * (1.0f - tx) * ty + static_cast<float>(next[x1](2)) * tx * ty
+         static_cast<float>(curr[x0](2)) * (1.0f - tx) * (1.0f - ty) + static_cast<float>(curr[x1](2)) * tx * (1.0f - ty) +
+         static_cast<float>(next[x0](2)) * (1.0f - tx) * ty + static_cast<float>(next[x1](2)) * tx * ty
       )
    };
 }
@@ -347,9 +284,11 @@ void LocationDetection::renderCameraView(Camera& camera)
       auto* view_ptr = camera.CameraView.ptr<Vec3b>(j);
       Point2f valid_world_point;
       for (int i = 0; i < camera.CameraView.cols; ++i) {
+         const Point camera_point(i, j);
+         float max_altitude = canSeePointOnDefaultAltitude( valid_world_point, camera_point, camera ) ?
+            DefaultAltitude : -numeric_limits<float>::infinity();
+         
          Point2f world_point;
-         Point camera_point(i, j);
-         float max_altitude = -numeric_limits<float>::infinity();
          for (const auto& zone : CustomizedZones) {
             if (transformCameraToWorld( world_point, camera_point, zone.Altitude, camera )) {
                if (isInsideZone( static_cast<Point>(world_point), zone.Zone )) {
@@ -360,12 +299,7 @@ void LocationDetection::renderCameraView(Camera& camera)
                }
             }
          }
-         //if (transformCameraToWorld( world_point, camera_point, DefaultAltitude, camera )) {
-         //   if (max_altitude < DefaultAltitude) {
-         //      max_altitude = DefaultAltitude;
-         //      valid_world_point = world_point;
-         //   }
-         //}
+         
          if (isinf( max_altitude )) continue;
 
          view_ptr[i] = getPixelBilinearInterpolated( valid_world_point );
@@ -373,27 +307,70 @@ void LocationDetection::renderCameraView(Camera& camera)
    }
 }
 
+void LocationDetection::transformWorldToCamera(
+   Point& transformed, 
+   const Point& world_point,
+   const float& altitude_of_point,
+   const Camera& camera
+) const
+// camera's view direction is z-axis, down direction is y-axis, and right direction is x-axis.
+{
+   const Point2f actual_point_in_meter(
+      static_cast<float>(world_point.x) / MeterToPixel, 
+      static_cast<float>(world_point.y) / MeterToPixel
+   );
+   const float h = camera.CameraHeight + camera.Altitude - altitude_of_point;
+   Point3f world = camera.Intrinsic * camera.TiltingToCamera * camera.PanningToCamera * Point3f(
+      actual_point_in_meter.y - camera.Translation.x, 
+      h, 
+      actual_point_in_meter.x - camera.Translation.z
+   );
+   if (world.z == 0.0f) world.z = 1e-7f;
+   world.x /= world.z;
+   world.y /= world.z;
+   transformed.x = static_cast<int>(round( world.x ));
+   transformed.y = static_cast<int>(round( world.y ));
+}
+
+void LocationDetection::renderZonesInCamera(Camera& camera)
+{
+   for (const auto& zone : CustomizedZones) {
+      vector<Point> points_in_camera(zone.Zone.size());
+      for (uint i = 0; i < zone.Zone.size(); ++i) {
+         transformWorldToCamera( points_in_camera[i], zone.Zone[i], zone.Altitude, camera );
+      }
+      renderZone( camera.CameraView, points_in_camera, YELLOW_COLOR );
+   }
+}
+
 void LocationDetection::pickPointCallback(int evt, int x, int y, int flags, void* param)
 {
-   static bool update = false;
-
    if (evt == CV_EVENT_LBUTTONDOWN) {
-      update = true;
-      //ClickedPoint = Point(x, y);
-   }
-   else if (evt == CV_EVENT_MOUSEWHEEL) {
-      //if (ClickedPoint.x >= 0) {
-      //   update = true;
-      //   if (flags & CV_EVENT_FLAG_CTRLKEY) updateFenceHeight( getMouseWheelDelta( flags ) );
-      //   else updateFenceRadius( getMouseWheelDelta( flags ) );
-      //}
-   }
-
-   if (update) {
-      update = false;
-      
       Mat viewer = static_cast<Mat*>(param)->clone();
-      //render( viewer );
+      const Point world_point(x, y);
+      circle( viewer, world_point, 10, RED_COLOR, -1 );
+
+      const Point2f actual_point_in_meter(static_cast<float>(x) / MeterToPixel, static_cast<float>(y) / MeterToPixel );
+      cout << "\n>> Location of Event Generated: " << actual_point_in_meter << " (in meter)\n";
+
+      float max_altitude = DefaultAltitude;
+      for (const auto& zone : CustomizedZones) {
+         if (isInsideZone( world_point, zone.Zone )) {
+            if (max_altitude < zone.Altitude) {
+               max_altitude = zone.Altitude;
+            }
+         }
+      }
+
+      cout << ">> Event Location Information in Each Camera:\n";
+      for (auto& camera : LocalCameras) {
+         Point camera_point;
+         transformWorldToCamera( camera_point, world_point, max_altitude, camera );
+         circle( camera.CameraView, camera_point, 5, RED_COLOR, -1 );
+         imshow( "Camera#" + to_string( camera.Index ), camera.CameraView );
+         cout << ">> [" << to_string( camera.Index ) << "] " << camera_point << endl;
+      }
+      imshow( "Event Generation", viewer );
    }
 }
 
@@ -406,14 +383,36 @@ void LocationDetection::generateEvent()
 {
    for (auto& camera : LocalCameras) {
       renderCameraView( camera );
-      imshow("cam" + to_string( camera.Index ), camera.CameraView );
+      renderZonesInCamera( camera );
    }
+
+   Mat viewer = FloorImage.clone();
+   namedWindow( "Event Generation", 0 );
+   resizeWindow( "Event Generation", FloorImage.cols / 3, FloorImage.rows / 3 );
+   imshow( "Event Generation", viewer );
+   setMouseCallback( "Event Generation", pickPointCallbackWrapper, &viewer );
    waitKey();
-   //
-   //Mat viewer = WorldMap.clone();
-   //namedWindow( "Location Detection", 1 );
-   //imshow( "Location Detection", viewer );
-   //setMouseCallback( "Location Detection", pickPointCallbackWrapper, &viewer );
-   //waitKey();
-   //destroyWindow( "Location Detection" );
+   destroyWindow( "Event Generation" );
+}
+
+void LocationDetection::detectLocation(Point& camera_point, const int& camera_index, const Point2f& actual_position_in_meter)
+{
+   if (static_cast<int>(LocalCameras.size()) <= camera_index) {
+      camera_point = { -1, -1 };
+      return;
+   }
+
+   const Point world_point(
+      static_cast<int>(round( actual_position_in_meter.x * MeterToPixel )), 
+      static_cast<int>(round( actual_position_in_meter.y * MeterToPixel ))
+   );
+
+   float altitude = DefaultAltitude;
+   for (const auto& zone : CustomizedZones) {
+      if (isInsideZone( world_point, zone.Zone )) {
+         altitude = zone.Altitude;
+         break;
+      }
+   }
+   transformWorldToCamera( camera_point, world_point, altitude, LocalCameras[camera_index] );
 }

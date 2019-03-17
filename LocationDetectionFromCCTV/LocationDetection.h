@@ -46,9 +46,6 @@ class LocationDetection
 
    vector<Point> ClickedPoints;
 
-   //Mat WorldMap;
-   //Rect FloorOnWorldMap;
-
    Mat FloorImage;
    float ActualFloorWidth;  // ActualFloorWidth(m) * MeterToPixel(pixel/m) = FloorImage.cols(pixel)
    float ActualFloorHeight; // ActualFloorHeight(m) * MeterToPixel(pixel/m) = FloorImage.rows(pixel)
@@ -57,13 +54,21 @@ class LocationDetection
    vector<CustomizedZone> CustomizedZones;
    vector<Camera> LocalCameras;
 
-   void setWorldMap();
-
    void renderZone(Mat& image, const vector<Point>& zone, const Scalar& color = YELLOW_COLOR) const;
    
    bool isInsideZone(const Point& point, const vector<Point>& zone) const;
    
    void renderCameraPositionOnWorldMap(const Camera& camera);
+
+   bool transformCameraToWorld(
+      Point2f& transformed, 
+      const Point& camera_point,
+      const float& altitude_of_point,
+      const Camera& camera
+   ) const;
+   bool canSeePointOnDefaultAltitude(Point2f& world_point, const Point& camera_point, const Camera& camera);
+   Vec3b getPixelBilinearInterpolated(const Point2f& image_point);
+   void renderCameraView(Camera& camera);
 
    void transformWorldToCamera(
       Point& transformed, 
@@ -72,15 +77,6 @@ class LocationDetection
       const Camera& camera
    ) const;
    void renderZonesInCamera(Camera& camera);
-
-   bool transformCameraToWorld(
-      Point2f& transformed, 
-      const Point& camera_point,
-      const float& altitude_of_point,
-      const Camera& camera
-   ) const;
-   Vec3b getPixelBilinearInterpolated(const Point2f& image_point);
-   void renderCameraView(Camera& camera);
 
    bool isEndPoint(const int& x, const int& y);
    void customizeZonesCallback(int evt, int x, int y, int flags, void* param);
@@ -109,6 +105,6 @@ public:
       const float& camera_height_in_meter,
       const Point2f& actual_position_in_meter
    );
-   void detectLocation(Point& camera_point, const int& camera_index, const Point2f& actual_position_in_meter);
    void generateEvent();
+   void detectLocation(Point& camera_point, const int& camera_index, const Point2f& actual_position_in_meter);
 };
