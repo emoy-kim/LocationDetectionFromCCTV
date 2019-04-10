@@ -18,7 +18,7 @@
   1. Construct an instance of *LocationDetection class*.
   2. Set a polygon by clicking points on the 'Customizing Zones' window.
      The convex polygon is automatically set from points you clicked.
-     * **Enter key**: complete a zone setting when it turns green, and input the altitude of this zone
+     * **Enter key**: complete a zone setting when it turns *green*, and input the altitude of this zone
      * **q key**: exit the setting zones
      
 ## How to Convert the World Map to the Camera
