@@ -21,12 +21,12 @@
      * **Enter key**: complete a zone setting when it turns green, and input the altitude of this zone
      * **q key**: exit the setting zones
      
-## How to Convert The World Map to The Camera
+## How to Convert the World Map to the Camera
   * Call *generateEventOnWorldMap()*.
   * Click anywhere inside the 'Event Generation' window.
   * After clicking, the views of cameras which are already set are popped up.  
   
-## How to Convert The Camera to The World Map
+## How to Convert the Camera to the World Map
   * Call *generateEventOnCamera()*.
   * Click anywhere inside the 'Event Generation on Camera#<index>' window.
   * After clicking, the world map is popped up.  
