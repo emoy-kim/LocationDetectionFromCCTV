@@ -1,3 +1,12 @@
+/*
+ * Author: Emoy Kim
+ * E-mail: emoy.kim_AT_gmail.com
+ * 
+ * This code is a free software; it can be freely used, changed and redistributed.
+ * If you use any version of the code, please reference the code.
+ * 
+ */
+
 #pragma once
 
 #include <OpenCVLinker.h>
@@ -67,6 +76,7 @@ class LocationDetection
       const Camera& camera
    ) const;
    bool canSeePointOnDefaultAltitude(Point2f& world_point, const Point& camera_point, const Camera& camera);
+   bool getValidWorldPointFromCamera(Point2f& valid_world_point, const Point& camera_point, const Camera& camera);
    Vec3b getPixelBilinearInterpolated(const Point2f& image_point);
    void renderCameraView(Camera& camera);
 
@@ -82,8 +92,10 @@ class LocationDetection
    void customizeZonesCallback(int evt, int x, int y, int flags, void* param);
    static void customizeZonesCallbackWrapper(int evt, int x, int y, int flags, void* param);
    
-   void pickPointCallback(int evt, int x, int y, int flags, void* param);
-   static void pickPointCallbackWrapper(int evt, int x, int y, int flags, void* param);
+   void pickPointOnWorldMapCallback(int evt, int x, int y, int flags, void* param);
+   void pickPointOnCameraCallback(int evt, int x, int y, int flags, void* param);
+   static void pickPointOnWorldMapCallbackWrapper(int evt, int x, int y, int flags, void* param);
+   static void pickPointOnCameraCallbackWrapper(int evt, int x, int y, int flags, void* param);
 
 
 public:
@@ -105,6 +117,9 @@ public:
       const float& camera_height_in_meter,
       const Point2f& actual_position_in_meter
    );
-   void generateEvent();
+   void generateEventOnWorldMap();
+   void generateEventOnCamera(const int& camera_index);
+   
    void detectLocation(Point& camera_point, const int& camera_index, const Point2f& actual_position_in_meter);
+   void detectLocation(Point2f& actual_position_in_meter, const Point& camera_point, const int& camera_index);
 };

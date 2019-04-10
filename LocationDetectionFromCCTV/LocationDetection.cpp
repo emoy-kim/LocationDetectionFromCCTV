@@ -12,7 +12,7 @@ LocationDetection::LocationDetection(const float& actual_width, const float& act
       if (zones.empty()) customizeZones();
       else CustomizedZones = zones;
    }
-   else cout << "Cannot Load the Image..." << endl;
+   else cout << "Cannot Load the Image...\n";
 }
 
 bool LocationDetection::isEndPoint(const int& x, const int& y)
@@ -78,10 +78,9 @@ void LocationDetection::customizeZones()
       key = waitKey();
       destroyWindow( "Customizing Zones" );
 
-      if (key == 'r' || ClickedPoints.empty()) continue;
       if (key == 13 /* Enter */) {
          float altitude;
-         cout << ">> Enter the Altitude in Meter." << endl;
+         cout << ">> Enter the Altitude in Meter.\n";
          cin >> altitude;
          CustomizedZones.emplace_back( altitude, ClickedPoints );
 
@@ -105,8 +104,8 @@ bool LocationDetection::isInsideZone(const Point& point, const vector<Point>& zo
 
 void LocationDetection::renderCameraPositionOnWorldMap(const Camera& camera)
 {
-   const Point3f origin_vector(0.0f, 0.0f, 35.0f);
-   const Scalar color(51, 153, 255);
+   const Point3f origin_vector(0.0f, 0.0f, 135.0f);
+   const Scalar color(87, 7, 228);
 
    const float half_fov = atan( camera.CameraView.cols * 0.5f / camera.FocalLength );
    const float cos_fov = cos( half_fov );
@@ -133,7 +132,7 @@ void LocationDetection::renderCameraPositionOnWorldMap(const Camera& camera)
    const Point camera_direction = camera_in_world + Point(
       static_cast<int>(round( view_vector.z )), static_cast<int>(round( view_vector.x ))
    );
-   arrowedLine( FloorImage, camera_in_world, camera_direction, color, 2 );
+   arrowedLine( FloorImage, camera_in_world, camera_direction, color, 4 );
 
    const Point3f left_fov = tilt_inv * fov_pos * pan_inv * origin_vector;
    const Point3f right_fov = tilt_inv * fov_neg * pan_inv * origin_vector;
@@ -143,8 +142,8 @@ void LocationDetection::renderCameraPositionOnWorldMap(const Camera& camera)
    const Point right_direction = camera_in_world + Point(
       static_cast<int>(round( right_fov.z )), static_cast<int>(round( right_fov.x ))
    );
-   line( FloorImage, camera_in_world, left_direction, color );
-   line( FloorImage, camera_in_world, right_direction, color );
+   line( FloorImage, camera_in_world, left_direction, color, 3 );
+   line( FloorImage, camera_in_world, right_direction, color, 3 );
 }
 
 void LocationDetection::setCamera(
@@ -250,6 +249,25 @@ bool LocationDetection::canSeePointOnDefaultAltitude(Point2f& world_point, const
    return false;
 }
 
+bool LocationDetection::getValidWorldPointFromCamera(Point2f& valid_world_point, const Point& camera_point, const Camera& camera)
+{
+   float max_altitude = canSeePointOnDefaultAltitude( valid_world_point, camera_point, camera ) ?
+         DefaultAltitude : -numeric_limits<float>::infinity();
+   
+   Point2f world_point;
+   for (const auto& zone : CustomizedZones) {
+      if (transformCameraToWorld( world_point, camera_point, zone.Altitude, camera )) {
+         if (isInsideZone( static_cast<Point>(world_point), zone.Zone )) {
+            if (max_altitude < zone.Altitude) {
+               max_altitude = zone.Altitude;
+               valid_world_point = world_point;
+            }
+         }
+      }
+   }
+   return !isinf( max_altitude );
+}
+
 Vec3b LocationDetection::getPixelBilinearInterpolated(const Point2f& image_point)
 {
    const auto x0 = static_cast<int>(floor( image_point.x ));
@@ -280,29 +298,14 @@ Vec3b LocationDetection::getPixelBilinearInterpolated(const Point2f& image_point
 
 void LocationDetection::renderCameraView(Camera& camera)
 {
+   Point2f valid_world_point;
    for (int j = 0; j < camera.CameraView.rows; ++j) {
       auto* view_ptr = camera.CameraView.ptr<Vec3b>(j);
-      Point2f valid_world_point;
       for (int i = 0; i < camera.CameraView.cols; ++i) {
          const Point camera_point(i, j);
-         float max_altitude = canSeePointOnDefaultAltitude( valid_world_point, camera_point, camera ) ?
-            DefaultAltitude : -numeric_limits<float>::infinity();
-         
-         Point2f world_point;
-         for (const auto& zone : CustomizedZones) {
-            if (transformCameraToWorld( world_point, camera_point, zone.Altitude, camera )) {
-               if (isInsideZone( static_cast<Point>(world_point), zone.Zone )) {
-                  if (max_altitude < zone.Altitude) {
-                     max_altitude = zone.Altitude;
-                     valid_world_point = world_point;
-                  }
-               }
-            }
+         if (getValidWorldPointFromCamera( valid_world_point, camera_point, camera )) {
+            view_ptr[i] = getPixelBilinearInterpolated( valid_world_point );
          }
-         
-         if (isinf( max_altitude )) continue;
-
-         view_ptr[i] = getPixelBilinearInterpolated( valid_world_point );
       }
    }
 }
@@ -343,7 +346,7 @@ void LocationDetection::renderZonesInCamera(Camera& camera)
    }
 }
 
-void LocationDetection::pickPointCallback(int evt, int x, int y, int flags, void* param)
+void LocationDetection::pickPointOnWorldMapCallback(int evt, int x, int y, int flags, void* param)
 {
    if (evt == CV_EVENT_LBUTTONDOWN) {
       Mat viewer = static_cast<Mat*>(param)->clone();
@@ -351,7 +354,7 @@ void LocationDetection::pickPointCallback(int evt, int x, int y, int flags, void
       circle( viewer, world_point, 10, RED_COLOR, -1 );
 
       const Point2f actual_point_in_meter(static_cast<float>(x) / MeterToPixel, static_cast<float>(y) / MeterToPixel );
-      cout << "\n>> Location of Event Generated: " << actual_point_in_meter << " (in meter)\n";
+      cout << "\n>> Event Location Generated on World Map: " << actual_point_in_meter << " (in meter)\n";
 
       float max_altitude = DefaultAltitude;
       for (const auto& zone : CustomizedZones) {
@@ -366,20 +369,22 @@ void LocationDetection::pickPointCallback(int evt, int x, int y, int flags, void
       for (auto& camera : LocalCameras) {
          Point camera_point;
          transformWorldToCamera( camera_point, world_point, max_altitude, camera );
-         circle( camera.CameraView, camera_point, 5, RED_COLOR, -1 );
-         imshow( "Camera#" + to_string( camera.Index ), camera.CameraView );
-         cout << ">> [" << to_string( camera.Index ) << "] " << camera_point << endl;
+
+         Mat camera_view = camera.CameraView.clone();
+         circle( camera_view, camera_point, 5, RED_COLOR, -1 );
+         imshow( "Camera#" + to_string( camera.Index ), camera_view );
+         cout << ">> \t- Camera#" << to_string( camera.Index ) << " " << camera_point << endl;
       }
       imshow( "Event Generation", viewer );
    }
 }
 
-void LocationDetection::pickPointCallbackWrapper(int evt, int x, int y, int flags, void* param)
+void LocationDetection::pickPointOnWorldMapCallbackWrapper(int evt, int x, int y, int flags, void* param)
 {
-   Instance->pickPointCallback( evt, x, y, flags, param );
+   Instance->pickPointOnWorldMapCallback( evt, x, y, flags, param );
 }
 
-void LocationDetection::generateEvent()
+void LocationDetection::generateEventOnWorldMap()
 {
    for (auto& camera : LocalCameras) {
       renderCameraView( camera );
@@ -390,9 +395,59 @@ void LocationDetection::generateEvent()
    namedWindow( "Event Generation", 0 );
    resizeWindow( "Event Generation", FloorImage.cols / 3, FloorImage.rows / 3 );
    imshow( "Event Generation", viewer );
-   setMouseCallback( "Event Generation", pickPointCallbackWrapper, &viewer );
+   setMouseCallback( "Event Generation", pickPointOnWorldMapCallbackWrapper, &viewer );
    waitKey();
-   destroyWindow( "Event Generation" );
+   destroyAllWindows();
+}
+
+void LocationDetection::pickPointOnCameraCallback(int evt, int x, int y, int flags, void* param)
+{
+   if (evt == CV_EVENT_LBUTTONDOWN) {
+      auto* camera = static_cast<Camera*>(param);
+      Mat viewer = camera->CameraView.clone();
+      
+      Point2f valid_world_point;
+      const Point camera_point(x, y);
+      if (getValidWorldPointFromCamera( valid_world_point, camera_point, *camera )) {
+         cout << "\n>> Event Location Generated on Camera#" << camera->Index << ": " << camera_point << "\n";
+         circle( viewer, camera_point, 5, RED_COLOR, -1 );
+
+         const Point2f actual_point_in_meter( valid_world_point.x / MeterToPixel, valid_world_point.y / MeterToPixel );
+         cout << ">> Event Location on World Map: " << actual_point_in_meter << " (in meter)\n";
+
+         Mat world_map = FloorImage.clone();
+         circle( world_map, valid_world_point, 10, RED_COLOR, -1 );
+         namedWindow( "World Map", 0 );
+         resizeWindow( "World Map", world_map.cols / 3, world_map.rows / 3 );
+         imshow( "World Map", world_map );
+      }
+      imshow( "Event Generation on Camera#" + to_string( camera->Index ), viewer );
+   }
+}
+
+void LocationDetection::pickPointOnCameraCallbackWrapper(int evt, int x, int y, int flags, void* param)
+{
+   Instance->pickPointOnCameraCallback( evt, x, y, flags, param );
+}
+
+void LocationDetection::generateEventOnCamera(const int& camera_index)
+{
+   const auto camera = find_if( 
+      LocalCameras.begin(), LocalCameras.end(), 
+      [camera_index](const Camera& cam)
+      {
+         return cam.Index == camera_index;
+      }
+   );
+   if (camera == LocalCameras.end()) return;
+
+   renderCameraView( *camera );
+   renderZonesInCamera( *camera );
+   
+   imshow( "Event Generation on Camera#" + to_string( camera->Index ), camera->CameraView );
+   setMouseCallback( "Event Generation on Camera#" + to_string( camera->Index ), pickPointOnCameraCallbackWrapper, &*camera );
+   waitKey();
+   destroyAllWindows();
 }
 
 void LocationDetection::detectLocation(Point& camera_point, const int& camera_index, const Point2f& actual_position_in_meter)
@@ -415,4 +470,17 @@ void LocationDetection::detectLocation(Point& camera_point, const int& camera_in
       }
    }
    transformWorldToCamera( camera_point, world_point, altitude, LocalCameras[camera_index] );
+}
+
+void LocationDetection::detectLocation(Point2f& actual_position_in_meter, const Point& camera_point, const int& camera_index)
+{
+   actual_position_in_meter = { -1.0f, -1.0f };
+   if (static_cast<int>(LocalCameras.size()) <= camera_index) return;
+   
+   Point2f valid_world_point;
+   Camera& camera = LocalCameras[camera_index];
+   if (getValidWorldPointFromCamera( valid_world_point, camera_point, camera )) {
+      actual_position_in_meter.x = valid_world_point.x / MeterToPixel;
+      actual_position_in_meter.y = valid_world_point.y / MeterToPixel;
+   }
 }

@@ -8,7 +8,7 @@ void setCCTV1(LocationDetection& location_detector)
    const float focal_length = 500.0f;
    const float pan_angle_in_degree = 45.0f;
    const float tilt_angle_in_degree = 30.0f;
-   const float camera_height_in_meter = 30.0f;
+   const float camera_height_in_meter = 50.0f;
    const Point2f actual_position_in_meter(0.0f, 0.0f);
    location_detector.setCamera(
       camera_index,
@@ -29,7 +29,7 @@ void setCCTV2(LocationDetection& location_detector)
    const float focal_length = 500.0f;
    const float pan_angle_in_degree = -45.0f;
    const float tilt_angle_in_degree = 30.0f;
-   const float camera_height_in_meter = 30.0f;
+   const float camera_height_in_meter = 50.0f;
    const Point2f actual_position_in_meter(0.0f, 93.0f);
    location_detector.setCamera(
       camera_index,
@@ -50,7 +50,7 @@ void setCCTV3(LocationDetection& location_detector)
    const float focal_length = 500.0f;
    const float pan_angle_in_degree = -135.0f;
    const float tilt_angle_in_degree = 30.0f;
-   const float camera_height_in_meter = 30.0f;
+   const float camera_height_in_meter = 50.0f;
    const Point2f actual_position_in_meter(160.0f, 93.0f);
    location_detector.setCamera(
       camera_index,
@@ -71,7 +71,7 @@ void setCCTV4(LocationDetection& location_detector)
    const float focal_length = 500.0f;
    const float pan_angle_in_degree = 135.0f;
    const float tilt_angle_in_degree = 30.0f;
-   const float camera_height_in_meter = 30.0f;
+   const float camera_height_in_meter = 50.0f;
    const Point2f actual_position_in_meter(160.0f, 0.0f);
    location_detector.setCamera(
       camera_index,
@@ -82,6 +82,18 @@ void setCCTV4(LocationDetection& location_detector)
       camera_height_in_meter,
       actual_position_in_meter
    );
+}
+
+void testReprojection(LocationDetection& location_detector)
+{
+   Point camera_point;
+   const Point2f actual_point_in_meter(10.0f, 10.0f);
+   location_detector.detectLocation( camera_point, 1, actual_point_in_meter );
+   cout << "\nActual Point " << actual_point_in_meter << "(in meter) is projected on " << camera_point << " in Camera#1\n";
+
+   Point2f reprojected;
+   location_detector.detectLocation( reprojected, camera_point, 1 );
+   cout << "The projected point " << camera_point << " is reprojected on " << reprojected << "(in meter)\n";
 }
 
 int main()
@@ -95,12 +107,10 @@ int main()
    setCCTV3( location_detector );
    setCCTV4( location_detector );
 
-   location_detector.generateEvent();
+   location_detector.generateEventOnWorldMap();
 
-   Point camera_point;
-   const Point2f actual_point_in_meter(1.0f, 1.0f);
-   location_detector.detectLocation( camera_point, 1, actual_point_in_meter );
-   cout << camera_point << endl;
+   location_detector.generateEventOnCamera( 1 );
 
+   testReprojection( location_detector );
    return 0;
 }
