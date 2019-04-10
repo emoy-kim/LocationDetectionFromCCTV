@@ -19,7 +19,7 @@
   2. set a polygon by clicking points on the 'Customizing Zones' window.
      The convex polygon is automatically set from points you clicked.
      * **Enter key**: complete a zone setting and input the altitude of this zone
-     * *q key*: exit the setting zones
+     * **q key**: exit the setting zones
      
 ## How to Convert The World Map to The Camera
   * after setting event zones, the 'Event Generation' window is created.
