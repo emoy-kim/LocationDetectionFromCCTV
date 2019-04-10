@@ -15,13 +15,13 @@
   * OpenCV
 
 ## How to Set Event Zone
-  1. Call *generateEvent()*.
+  1. Construct an instance of *LocationDetection class*.
   2. Set a polygon by clicking points on the 'Customizing Zones' window.
      The convex polygon is automatically set from points you clicked.
      * **Enter key**: complete a zone setting and input the altitude of this zone
      * **q key**: exit the setting zones
      
 ## How to Convert The World Map to The Camera
-  * After setting event zones, the 'Event Generation' window is created.
+  * Call *generateEventOnWorldMap()*.
   * Click anywhere inside the 'Event Generation' window.
   * After clicking, the views of cameras which are already set are popped up.  
