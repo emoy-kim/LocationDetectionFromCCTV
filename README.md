@@ -2,7 +2,7 @@
 
   This code is about estimating a position of an world map from a local position of a camera and vice versa.
   
-  Please refer to [this](emoy.net) to see the details.
+  Please refer to [this](https://emoy.net/Location-Detection-from-CCTV) to see the details.
   
   
   
