@@ -107,7 +107,7 @@ void LocationDetection::renderCameraPositionOnWorldMap(const Camera& camera)
    const Point3f origin_vector(0.0f, 0.0f, 135.0f);
    const Scalar color(87, 7, 228);
 
-   const float half_fov = atan( camera.CameraView.cols * 0.5f / camera.FocalLength );
+   const float half_fov = atan( static_cast<float>(camera.CameraView.cols) * 0.5f / camera.FocalLength );
    const float cos_fov = cos( half_fov );
    const float sin_fov = sin( half_fov );
    const float cos_fov_neg = cos( -half_fov );
