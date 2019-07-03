@@ -2,7 +2,7 @@
 
   This code is about estimating a position of an world map from a local position of a camera and vice versa.
   
-  Please refer to [this](emoy.net) to see the details.
+  Please refer to [this](https://emoy.net/Location-Detection-from-CCTV) to see the details.
   
   
   
@@ -23,10 +23,10 @@
      
 ## How to Convert the World Map to the Camera
   * Call *generateEventOnWorldMap()*.
-  * Click anywhere inside the 'Event Generation' window.
-  * After clicking, the views of cameras which are already set are popped up.  
+  * Click anywhere inside the *'Event Generation'* window.
+  * When clicked, the views of cameras which are already set are popped up.  
   
 ## How to Convert the Camera to the World Map
   * Call *generateEventOnCamera()*.
-  * Click anywhere inside the 'Event Generation on Camera#<index>' window.
-  * After clicking, the world map is popped up.  
+  * Click anywhere inside the *'Event Generation on Camera#<index>'* window.
+  * When clicked, the world map is popped up.  
