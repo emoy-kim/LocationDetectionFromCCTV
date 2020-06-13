@@ -6,14 +6,6 @@
   
   
   
-## Test Environment
-  * Windows 10
-  * Visual Studio 2017
-  * Surface Book 2
-  
-## Library Dependencies
-  * OpenCV
-
 ## How to Set Event Zone
   1. Construct an instance of *LocationDetection class*.
   2. Set a polygon by clicking points on the 'Customizing Zones' window.
