@@ -21,4 +21,4 @@
 ## How to Convert the Camera to the World Map
   * Call *generateEventOnCamera()*.
   * Click anywhere inside the *'Event Generation on Camera#<index>'* window.
-  * When clicked, the world map is popped up.  
+  * When clicked, the world map pops up.  
