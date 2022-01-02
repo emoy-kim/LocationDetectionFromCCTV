@@ -2,7 +2,7 @@
 
   This code is about estimating a position of an world map from a local position of a camera and vice versa.
   
-  Please refer to [this](https://emoy.kim/projects/location_detection/) to see the details.
+  Please refer to [this](http://emoy.kim/projects/location_detection/) to see the details.
   
   
   
